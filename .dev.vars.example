@@ -1,0 +1,9 @@
+# .dev.vars - for local development only
+# These variables override wrangler.jsonc vars during local development
+# DO NOT commit this file to git (add to .gitignore)
+
+# Example: If you had a real token refresher URL
+TOKEN_REFRESHER_URL=https://your-real-token-refresher.workers.dev
+
+# Example: If you had API keys
+# SECRET_API_KEY=your-secret-key-here
