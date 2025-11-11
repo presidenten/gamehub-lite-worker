@@ -54,6 +54,7 @@ The app sends `"token": "fake-token"` in every request. The worker:
 ### Example Transformation
 
 **Before (from app)**:
+
 ```json
 {
   "token": "fake-token",
@@ -65,6 +66,7 @@ The app sends `"token": "fake-token"` in every request. The worker:
 ```
 
 **After (to server)**:
+
 ```json
 {
   "token": "f589a94e-fec5-4aea-a96b-115ecdfd50d8",
@@ -81,23 +83,21 @@ The app sends `"token": "fake-token"` in every request. The worker:
 
 ```javascript
 function generateSignature(params) {
-  const SECRET_KEY = 'all-egg-shell-y7ZatUDk';
+  const SECRET_KEY = 'all-egg-shell-y7ZatUDk'
 
   // Sort parameters alphabetically (exclude 'sign')
   const sortedKeys = Object.keys(params)
-    .filter(k => k !== 'sign')
-    .sort();
+    .filter((k) => k !== 'sign')
+    .sort()
 
   // Join as key=value&key=value
-  const paramString = sortedKeys
-    .map(key => `${key}=${params[key]}`)
-    .join('&');
+  const paramString = sortedKeys.map((key) => `${key}=${params[key]}`).join('&')
 
   // Append secret key
-  const signString = `${paramString}&${SECRET_KEY}`;
+  const signString = `${paramString}&${SECRET_KEY}`
 
   // MD5 hash (lowercase)
-  return md5(signString).toLowerCase();
+  return md5(signString).toLowerCase()
 }
 ```
 
@@ -106,9 +106,11 @@ function generateSignature(params) {
 ## API Endpoints
 
 ### POST /card/getGameDetail
+
 Get game details (proxied with token replacement)
 
 **Features**:
+
 - Replaces fake-token with real token
 - Regenerates signature
 - Removes `recommend_game` section
@@ -119,9 +121,11 @@ Get game details (proxied with token replacement)
 ---
 
 ### POST /card/getNewsList
+
 Get news list (routed to news-aggregator worker)
 
 **Request**:
+
 ```json
 {
   "page": 1,
@@ -134,9 +138,11 @@ Get news list (routed to news-aggregator worker)
 ---
 
 ### POST /card/getNewsGuideDetail
+
 Get full news article (routed to news-aggregator worker)
 
 **Request**:
+
 ```json
 {
   "id": 1
@@ -148,9 +154,11 @@ Get full news article (routed to news-aggregator worker)
 ---
 
 ### POST /simulator/executeScript
+
 Get Steam game configuration (with privacy protection)
 
 **Sanitization**:
+
 ```javascript
 // Original (from app)
 {
@@ -174,9 +182,11 @@ Get Steam game configuration (with privacy protection)
 ---
 
 ### POST /simulator/v2/getComponentList
+
 Get component manifests (Wine, Proton, DXVK, etc.)
 
 **Component Types**:
+
 - `1` - Box64 (x86_64 emulator)
 - `2` - GPU Drivers
 - `3` - DXVK (DirectX to Vulkan)
@@ -191,6 +201,7 @@ Get component manifests (Wine, Proton, DXVK, etc.)
 ---
 
 ### POST /base/getBaseInfo
+
 Get app configuration
 
 **Source**: GitHub repository
@@ -198,6 +209,7 @@ Get app configuration
 ---
 
 ### POST /cloud/game/check_user_timer
+
 Check cloud save timer
 
 **Source**: GitHub repository
@@ -205,6 +217,7 @@ Check cloud save timer
 ---
 
 ### GET /game/getSteamHost
+
 Get Steam CDN hosts
 
 **Source**: GitHub repository
@@ -213,6 +226,7 @@ Get Steam CDN hosts
 ---
 
 ### POST /game/getDnsIpPool
+
 Get DNS pool (empty for real Steam connections)
 
 **Source**: GitHub repository
@@ -220,6 +234,7 @@ Get DNS pool (empty for real Steam connections)
 ---
 
 ### POST /card/getGameIcon
+
 Get game icons (empty response, UI feature)
 
 ---
@@ -227,24 +242,26 @@ Get game icons (empty response, UI feature)
 ## Integration with Other Workers
 
 ### Token Refresher Worker
+
 ```javascript
 // Fetch real token with auth header
 const tokenResponse = await fetch(`${env.TOKEN_REFRESHER_URL}/token`, {
   headers: {
-    'X-Worker-Auth': 'gamehub-internal-token-fetch-2025'
-  }
-});
+    'X-Worker-Auth': 'gamehub-internal-token-fetch-2025',
+  },
+})
 
-const { token } = await tokenResponse.json();
+const { token } = await tokenResponse.json()
 // token: "f589a94e-fec5-4aea-a96b-115ecdfd50d8"
 ```
 
 ### News Aggregator Worker
+
 ```javascript
 // Forward news requests
 const newsResponse = await fetch(
-  `${NEWS_AGGREGATOR_URL}/api/news/list?page=${page}&page_size=${pageSize}`
-);
+  `${NEWS_AGGREGATOR_URL}/api/news/list?page=${page}&page_size=${pageSize}`,
+)
 ```
 
 ---
@@ -252,6 +269,7 @@ const newsResponse = await fetch(
 ## Privacy Features
 
 ### 1. IP Address Protection
+
 ```
 Original:
 User (123.45.67.89) → Chinese Server [TRACKED]
@@ -262,15 +280,18 @@ Server sees: Cloudflare IP [USER IP HIDDEN]
 ```
 
 ### 2. Device Fingerprint Sanitization
+
 - ✅ Keeps: GPU vendor (needed for configs)
 - ❌ Strips: Device model, GPU model, driver version, all identifiers
 
 ### 3. Automatic Token Management
+
 - No login required (tokens managed by separate worker)
 - Tokens refreshed every 4 hours automatically
 - Never expires
 
 ### 4. No Download Proxying
+
 - Component downloads are direct from CDN
 - Worker only provides URLs
 - Your IP not logged in download requests
@@ -280,6 +301,7 @@ Server sees: Cloudflare IP [USER IP HIDDEN]
 ## Setup
 
 ### 1. Install Dependencies
+
 ```bash
 cd gamehub-api
 npm install
@@ -292,12 +314,13 @@ Edit `wrangler.jsonc`:
 ```jsonc
 {
   "vars": {
-    "TOKEN_REFRESHER_URL": "https://gamehub-token-refresher.YOUR_SUBDOMAIN.workers.dev"
-  }
+    "TOKEN_REFRESHER_URL": "https://gamehub-token-refresher.YOUR_SUBDOMAIN.workers.dev",
+  },
 }
 ```
 
 ### 3. Deploy
+
 ```bash
 npm run deploy
 ```
@@ -305,6 +328,7 @@ npm run deploy
 ### 4. Update APK Base URL
 
 In modified APK, change base URL to:
+
 ```
 https://gamehub-api.YOUR_SUBDOMAIN.workers.dev
 ```
@@ -314,11 +338,13 @@ https://gamehub-api.YOUR_SUBDOMAIN.workers.dev
 ## Monitoring
 
 ### View Real-Time Logs
+
 ```bash
 npm run tail
 ```
 
 **Expected logs**:
+
 ```
 [TOKEN] Detected fake-token, fetching real token...
 [TOKEN] Replacing fake-token with real token: f589a94e-...
@@ -326,11 +352,13 @@ npm run tail
 ```
 
 ### Check Deployment Status
+
 ```bash
 npx wrangler deployments list
 ```
 
 ### View Analytics
+
 Cloudflare Dashboard → Workers & Pages → gamehub-api → Metrics
 
 ---
@@ -338,6 +366,7 @@ Cloudflare Dashboard → Workers & Pages → gamehub-api → Metrics
 ## Development
 
 ### Run Locally
+
 ```bash
 npm run dev
 ```
@@ -345,6 +374,7 @@ npm run dev
 Visit: `http://localhost:8787`
 
 ### Test Token Replacement
+
 ```bash
 curl -X POST http://localhost:8787/card/getGameDetail \
   -H "Content-Type: application/json" \
@@ -361,32 +391,36 @@ curl -X POST http://localhost:8787/card/getGameDetail \
 ## Configuration
 
 ### Environment Variables (wrangler.jsonc)
+
 ```jsonc
 {
   "vars": {
-    "TOKEN_REFRESHER_URL": "https://gamehub-token-refresher.secureflex.workers.dev"
-  }
+    "TOKEN_REFRESHER_URL": "https://gamehub-token-refresher.secureflex.workers.dev",
+  },
 }
 ```
 
 ### Constants (src/index.ts)
+
 ```typescript
-const GITHUB_BASE = 'https://raw.githubusercontent.com/gamehublite/gamehub_api/main';
-const NEWS_AGGREGATOR_URL = 'https://gamehub-news-aggregator.secureflex.workers.dev';
-const GAMEHUB_SECRET_KEY = 'all-egg-shell-y7ZatUDk';
+const GITHUB_BASE =
+  'https://raw.githubusercontent.com/gamehublite/gamehub_api/main'
+const NEWS_AGGREGATOR_URL =
+  'https://gamehub-news-aggregator.secureflex.workers.dev'
+const GAMEHUB_SECRET_KEY = 'all-egg-shell-y7ZatUDk'
 ```
 
 ---
 
 ## Error Handling
 
-| Scenario | Response | Action |
-|----------|----------|--------|
-| Token fetch fails | Log error | Continue (will fail at server) |
-| Signature generation fails | Log error | Forward original request |
-| GitHub fetch fails | 500 error | Client retries |
-| News worker down | Empty news | Client shows empty state |
-| Chinese API down | Forward error | Client shows error |
+| Scenario                   | Response      | Action                         |
+| -------------------------- | ------------- | ------------------------------ |
+| Token fetch fails          | Log error     | Continue (will fail at server) |
+| Signature generation fails | Log error     | Forward original request       |
+| GitHub fetch fails         | 500 error     | Client retries                 |
+| News worker down           | Empty news    | Client shows empty state       |
+| Chinese API down           | Forward error | Client shows error             |
 
 ---
 
@@ -405,23 +439,27 @@ const GAMEHUB_SECRET_KEY = 'all-egg-shell-y7ZatUDk';
 ## Troubleshooting
 
 ### "Wrong signature" Error
+
 1. Check token is being replaced (view logs)
 2. Verify signature algorithm matches server
 3. Ensure secret key is correct: `all-egg-shell-y7ZatUDk`
 4. Check parameters sorted alphabetically
 
 ### Token Not Being Replaced
+
 1. Verify app sends "fake-token" exactly
 2. Check token-refresher is responding
 3. Test auth header: `X-Worker-Auth: gamehub-internal-token-fetch-2025`
 4. Review worker logs for errors
 
 ### News Not Loading
+
 1. Check news-aggregator worker is deployed
 2. Verify `NEWS_AGGREGATOR_URL` is correct
 3. Test news endpoint directly
 
 ### Components Not Loading
+
 1. Verify GitHub repository exists
 2. Check manifest files in repo
 3. Test GitHub URLs directly
@@ -443,6 +481,7 @@ const GAMEHUB_SECRET_KEY = 'all-egg-shell-y7ZatUDk';
 ### Required APK Modifications
 
 1. **Base URL Change**:
+
    ```smali
    # Change in network config
    const-string v0, "https://gamehub-api.secureflex.workers.dev"
@@ -480,6 +519,7 @@ npm run deploy
 ```
 
 Output:
+
 ```
 Deployed gamehub-api
   https://gamehub-api-YOUR-NAME.workers.dev
