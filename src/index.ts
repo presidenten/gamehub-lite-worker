@@ -8,10 +8,8 @@
 import { md5 } from './md5.js'
 
 const GITHUB_BASE =
-  'https://raw.githubusercontent.com/gamehublite/gamehub_api/main'
-const WORKER_URL = 'https://gamehub-api.secureflex.workers.dev'
-const NEWS_AGGREGATOR_URL =
-  'https://gamehub-news-aggregator.secureflex.workers.dev'
+  'https://raw.githubusercontent.com/Producdevity/gamehub-lite-api/master'
+const NEWS_AGGREGATOR_URL = 'https://gamehub-lite-news.emuready.workers.dev'
 const GAMEHUB_SECRET_KEY = 'all-egg-shell-y7ZatUDk'
 
 // Generate signature for GameHub API requests
@@ -117,8 +115,8 @@ export default {
           )
 
           if (tokenResponse.ok) {
-            const tokenData = await tokenResponse.json()
-            realToken = tokenData.token
+            const tokenData = (await tokenResponse.json()) as { token: string }
+            realToken = tokenData?.token as string
             console.log('[TOKEN] Fetched token via HTTP fallback:', realToken)
           } else {
             console.error(
