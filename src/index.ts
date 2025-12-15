@@ -5,22 +5,12 @@
  * Proxies CDN downloads to hide user IP from Chinese servers
  */
 
-import { md5 } from './md5.js'
+import { generateSignature } from './generateSignature'
 
 const GITHUB_BASE =
   'https://raw.githubusercontent.com/Producdevity/gamehub-lite-api/master'
 const NEWS_AGGREGATOR_URL = 'https://gamehub-lite-news.emuready.workers.dev'
-const GAMEHUB_SECRET_KEY = 'all-egg-shell-y7ZatUDk'
-
-// Generate signature for GameHub API requests
-function generateSignature(params: Record<string, any>): string {
-  const sortedKeys = Object.keys(params)
-    .filter((k) => k !== 'sign')
-    .sort()
-  const paramString = sortedKeys.map((key) => `${key}=${params[key]}`).join('&')
-  const signString = `${paramString}&${GAMEHUB_SECRET_KEY}`
-  return md5(signString).toLowerCase()
-}
+const GH_BASE_URL = 'https://landscape-api.vgabc.com'
 
 // Map component types to their manifest files
 const TYPE_TO_MANIFEST: Record<number, string> = {
@@ -44,17 +34,16 @@ export default {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type',
-    }
+    } as const
 
-    // GLOBAL CACHE DISABLE - No caching anywhere
+    // Disable caching for all responses
     const noCacheHeaders = {
       'Cache-Control':
         'no-cache, no-store, must-revalidate, max-age=0, s-maxage=0',
       Pragma: 'no-cache',
       Expires: '0',
-    }
+    } as const
 
-    // Combine CORS + No-Cache headers for all responses
     const allHeaders = { ...corsHeaders, ...noCacheHeaders }
 
     // Handle CORS preflight
@@ -79,14 +68,19 @@ export default {
         shouldReplaceToken = true
       }
 
-      // Check POST body for fake-token
-      if (
-        request.method === 'POST' &&
-        request.headers.get('Content-Type')?.includes('application/json')
-      ) {
+      // Check clientparams header for fake-token (URL-encoded format: token=fake-token)
+      const clientParamsHeader = request.headers.get('clientparams')
+      if (clientParamsHeader?.includes('fake-token')) {
+        shouldReplaceToken = true
+        console.log('[TOKEN] Found fake-token in clientparams header')
+      }
+
+      // Check POST body for fake-token (check ALL bodies, not just application/json)
+      if (request.method === 'POST') {
         bodyText = await request.clone().text()
         if (bodyText.includes('fake-token')) {
           shouldReplaceToken = true
+          console.log('[TOKEN] Found fake-token in POST body')
         }
       }
 
@@ -128,7 +122,7 @@ export default {
         if (realToken) {
           console.log('[TOKEN] Replacing fake-token with real token')
 
-          // Clone request to modify headers/body
+          // Clone requests to modify headers/body
           const newHeaders = new Headers(request.headers)
 
           // Replace token in headers if present
@@ -142,18 +136,49 @@ export default {
             newHeaders.set('token', realToken)
           }
 
+          // Replace token in clientparams header if present
+          if (clientParamsHeader?.includes('fake-token')) {
+            const newClientParams = clientParamsHeader.replace(
+              /fake-token/g,
+              realToken,
+            )
+            newHeaders.set('clientparams', newClientParams)
+            console.log('[TOKEN] Replaced fake-token in clientparams header')
+          }
+
           // Replace token in POST body if present
           if (bodyText && bodyText.includes('fake-token')) {
-            // Parse the body as JSON to regenerate signature
-            const bodyJson = JSON.parse(bodyText)
-            bodyJson.token = realToken
+            try {
+              // Try to parse as JSON first
+              const bodyJson = JSON.parse(bodyText)
+              bodyJson.token = realToken
 
-            // Regenerate signature with new token
-            const newSignature = generateSignature(bodyJson)
-            bodyJson.sign = newSignature
+              // Also replace in clientparams field if present
+              if (
+                bodyJson.clientparams &&
+                bodyJson.clientparams.includes('fake-token')
+              ) {
+                bodyJson.clientparams = bodyJson.clientparams.replace(
+                  /fake-token/g,
+                  realToken,
+                )
+              }
 
-            bodyText = JSON.stringify(bodyJson)
-            console.log('[TOKEN] Replaced fake-token and regenerated signature')
+              // Regenerate signature with new token
+              const newSignature = generateSignature(bodyJson)
+              bodyJson.sign = newSignature
+
+              bodyText = JSON.stringify(bodyJson)
+              console.log(
+                '[TOKEN] Replaced fake-token in JSON body and regenerated signature',
+              )
+            } catch (e) {
+              // Not JSON - do simple string replacement (for form-urlencoded)
+              bodyText = bodyText.replace(/fake-token/g, realToken)
+              console.log(
+                '[TOKEN] Replaced fake-token in non-JSON body (signature may be invalid)',
+              )
+            }
 
             modifiedRequest = new Request(request.url, {
               method: request.method,
@@ -251,7 +276,7 @@ export default {
 
         // Forward request to Chinese server with all headers (for signature)
         const chineseResponse = await fetch(
-          'https://landscape-api.vgabc.com/card/getGameDetail',
+          `${GH_BASE_URL}/card/getGameDetail`,
           {
             method: 'POST',
             headers: forwardHeaders,
@@ -310,7 +335,7 @@ export default {
 
         // Forward request to Chinese server with all original headers (for signature)
         const chineseResponse = await fetch(
-          'https://landscape-api.vgabc.com/search/getGameList',
+          `${GH_BASE_URL}/search/getGameList`,
           {
             method: 'POST',
             headers: request.headers,
@@ -649,7 +674,7 @@ export default {
 
         // Forward request AS-IS to Chinese server with all original headers
         const chineseResponse = await fetch(
-          'https://landscape-api.vgabc.com/simulator/executeScript',
+          `${GH_BASE_URL}/simulator/executeScript`,
           {
             method: 'POST',
             headers: request.headers,
@@ -666,6 +691,52 @@ export default {
             ...allHeaders,
           },
         })
+      }
+
+      // Handle /heartbeat/game/start endpoint - Return success to allow game launch
+      // This endpoint is called when Steam Full mode launches a game
+      // Returning code 0 allows the game to start without actual server validation
+      if (
+        url.pathname === '/heartbeat/game/start' &&
+        request.method === 'POST'
+      ) {
+        console.log('[HEARTBEAT] Game start heartbeat - returning success')
+        return new Response(
+          JSON.stringify({
+            code: 200,
+            msg: 'Success',
+            time: Math.floor(Date.now() / 1000).toString(),
+            data: {
+              code: 0,
+              msg: 'ok',
+            },
+          }),
+          {
+            headers: { 'Content-Type': 'application/json', ...allHeaders },
+          },
+        )
+      }
+
+      // Handle /heartbeat/game/stop endpoint - Return success for game stop
+      if (
+        url.pathname === '/heartbeat/game/stop' &&
+        request.method === 'POST'
+      ) {
+        console.log('[HEARTBEAT] Game stop heartbeat - returning success')
+        return new Response(
+          JSON.stringify({
+            code: 200,
+            msg: 'Success',
+            time: Math.floor(Date.now() / 1000).toString(),
+            data: {
+              code: 0,
+              msg: 'ok',
+            },
+          }),
+          {
+            headers: { 'Content-Type': 'application/json', ...allHeaders },
+          },
+        )
       }
 
       // Handle /base/getBaseInfo endpoint
@@ -701,7 +772,7 @@ export default {
 
         // Forward request to Chinese server with all original headers
         const chineseResponse = await fetch(
-          'https://landscape-api.vgabc.com/cloud/game/check_user_timer',
+          `${GH_BASE_URL}/cloud/game/check_user_timer`,
           {
             method: 'POST',
             headers: request.headers,
