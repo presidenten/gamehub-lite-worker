@@ -31,7 +31,7 @@
    * https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
    */
   "vars": {
-    "TOKEN_REFRESHER_URL": "https://gamehub-lite-token-refresh.emuready.workers.dev",
+    "TOKEN_REFRESHER_URL": "https://gamehub-lite-token-refresh.mail-1b0.workers.dev",
   },
   /**
    * KV Namespaces
@@ -41,11 +41,11 @@
   "kv_namespaces": [
     {
       "binding": "TOKEN_STORE",
-      "id": "cbd9a8c493214334bc07af5cc636102d",
+      "id": "e727b3cf99af4b20a9afccde02c56e9b",
     },
     {
       "binding": "FREE_GAMES_KV",
-      "id": "63675c7c9c6b4d7f94036b7826f4f136",
+      "id": "df83a418fa31495398a66df523408667",
     },
   ],
   /**
