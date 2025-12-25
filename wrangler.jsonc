@@ -4,7 +4,7 @@
  */
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "gamehub-lite-api",
+  "name": "gamehub-lite-worker",
   "main": "src/index.ts",
   "compatibility_date": "2025-10-03",
   "compatibility_flags": ["global_fetch_strictly_public"],
