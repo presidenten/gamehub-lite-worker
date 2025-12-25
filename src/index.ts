@@ -8,8 +8,8 @@
 import { generateSignature } from './generateSignature'
 
 const GITHUB_BASE =
-  'https://raw.githubusercontent.com/Producdevity/gamehub-lite-api/master'
-const NEWS_AGGREGATOR_URL = 'https://gamehub-lite-news.emuready.workers.dev'
+  'https://raw.githubusercontent.com/presidenten/gamehub-lite-api/master'
+const NEWS_AGGREGATOR_URL = 'https://gamehub-news.mail-1b0.workers.dev'
 const GH_BASE_URL = 'https://landscape-api.vgabc.com'
 
 // Map component types to their manifest files
